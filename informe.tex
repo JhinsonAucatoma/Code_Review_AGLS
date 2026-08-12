@@ -272,4 +272,42 @@ DATABASES = {
 
     Del c\'odigo de \texttt{sga-principal} s\'olo cuatro clases usan \texttt{@Slf4j} (\texttt{EmailService}, \texttt{ImportacionCasService}, \texttt{ImportacionExcelService}, \texttt{UsuarioService}); el resto de puntos de depuraci\'on usa \texttt{System.out}/\texttt{err.println}, incluido el propio \texttt{main()} (E1, no cumple, H10). No existe ning\'un identificador de correlaci\'on: los metadatos gRPC que s\'i se propagan (\texttt{docente\_id}, \texttt{internal\_token}) autentican al llamante pero no identifican la petici\'on, por lo que no sirven para unir registros de distintos servicios (E2, no cumple, H11). Al no existir E2, tampoco puede cumplirse un registro estructurado filtrable por identificador de correlaci\'on (E3, no cumple por dependencia directa de E2), aunque los mensajes que s\'i pasan por Slf4j usan par\'ametros con \texttt{\{\}} en vez de concatenaci\'on de cadenas, lo cual es una base aprovechable para migrar a JSON estructurado. Se encontr\'o exposici\'on de datos sensibles (E4, no cumple, cr\'itico, H12): el hash de una contrase\~na hardcodeada se imprime en cada arranque de \texttt{sga-principal}, y el \texttt{README.md} publica usuario y contrase\~na reales de dos roles. Los eventos cr\'iticos del dominio (matr\'icula, creaci\'on de ticket) s\'{\i} generan al menos un registro de persistencia auditable en base de datos vi\'a los campos \texttt{fecha\_creacion}/\texttt{creado\_por} de las entidades (E5, cumple parcialmente), pero sin acompa\~namiento de un registro de aplicaci\'on correlacionable.
 
+% ================================================================
+\section{Tabla de issues abiertos}
+\label{sec:issues}
+
+\begin{notebox}[title=Estado de apertura]
+Los 12 issues listados abajo (GitHub \#2--\#9 y \#11--\#14) ya fueron abiertos en el repositorio de BCEL con el contenido completo del Anexo A (t\'itulo, contexto, evidencia, diagn\'ostico, propuesta de correcci\'on, criterio de aceptaci\'on); el archivo \texttt{issues\_plan.md} entregado junto a este informe conserva el cuerpo de cada uno. La columna \emph{Resp.} refleja la asignaci\'on propuesta por AGLS por bloque tem\'atico (Bed\'on Viteri: Bloque A/SOLID; Castro L\'opez: BD compartida, secretos y resiliencia gRPC; Emanuel Pino: manejo de errores y trazabilidad; Luna Mora: exposici\'on de credenciales, gateway y limpieza de repositorio), pendiente de reflejarse todav\'ia como \emph{assignee} real en GitHub. Al momento de esta verificaci\'on ning\'un issue tiene todav\'ia \emph{label} ni \emph{assignee} asignado en GitHub: falta que el equipo BCEL aplique las etiquetas de severidad/bloque y se autoasigne seg\'un esta propuesta. Adem\'as, el issue \textbf{\#10} qued\'o creado como duplicado exacto del \#9 (mismo t\'itulo ``Unificar el formato de error con un \texttt{@ControllerAdvice} en \texttt{sga-principal}''), y el issue de higiene de repositorio (Sugerencia, hallazgo H14) \textbf{no lleg\'o a crearse}: se recomienda editar el \#10 para convertirlo en ese issue de higiene (en vez de cerrarlo como duplicado y perder el n\'umero) usando el cuerpo correspondiente de \texttt{issues\_plan.md}.
+\end{notebox}
+
+{\small
+\begin{xltabular}{\textwidth}{@{}p{0.5cm}Xp{1.9cm}p{1.7cm}p{1.7cm}p{1.9cm}@{}}
+\toprule
+\textbf{\#} & \textbf{T\'itulo} & \textbf{Bloque /Sever.} & \textbf{Enlace} & \textbf{Resp.} & \textbf{Fecha l\'imite} \\
+\midrule
+\endhead
+1 & Extraer el parseo de archivos de \texttt{ImportacionExcelService} en estrategias por formato (SRP) & A1 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/2}{\#2} & \scriptsize Bed\'on Viteri & \scriptsize Cierre S17 \\
+2 & Sustituir el \texttt{if/else} de \texttt{parsearArchivo} por un registro de \texttt{ImportadorArchivo} (OCP) & A2 / Menor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/3}{\#3} & \scriptsize Bed\'on Viteri & \scriptsize Cierre S17 \\
+3 & Enrutar \texttt{AuthController} exclusivamente a trav\'es de \texttt{UsuarioService} (DIP/capas) & A5/C2 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/4}{\#4} & \scriptsize Bed\'on Viteri & \scriptsize Cierre S17 \\
+4 & Dividir \texttt{PrincipalGrpcService} en adaptadores por agregado que s\'olo llamen a servicios (SRP/DIP) & A1/A5/C2 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/5}{\#5} & \scriptsize Bed\'on Viteri & \scriptsize Cierre S17 \\
+5 & Aislar el esquema de \texttt{microservicio-docente} (rol de BD sin acceso a \texttt{sga\_principal}) & B5/C5 / Cr\'itica & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/6}{\#6} & \scriptsize Castro L\'opez & \scriptsize Cierre S17 \\
+6 & Externalizar y rotar todos los secretos versionados (BD, JWT, SMTP, token gRPC) & C5 / Cr\'itica & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/7}{\#7} & \scriptsize Castro L\'opez & \scriptsize Cierre S17 \\
+7 & A\~nadir \texttt{deadline}, reintento acotado y degradaci\'on a los clientes gRPC & D2/D3/D4 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/8}{\#8} & \scriptsize Castro L\'opez & \scriptsize Cierre S17 \\
+8 & Unificar el formato de error con \texttt{@ControllerAdvice} en \texttt{sga-principal} & D5 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/9}{\#9} & \scriptsize Emanuel Pino & \scriptsize Cierre S17 \\
+9 & Reemplazar \texttt{System.out}/\texttt{err.println} por el logger inyectado en toda la base & E1 / Menor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/11}{\#11} & \scriptsize Emanuel Pino & \scriptsize Cierre S17 \\
+10 & Propagar un identificador de correlaci\'on entre HTTP y gRPC & E2 / Mayor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/12}{\#12} & \scriptsize Emanuel Pino & \scriptsize Cierre S17 \\
+11 & Eliminar la impresi\'on del hash de contrase\~na en \texttt{main()} y las credenciales del \texttt{README.md} & E4 / Cr\'itica & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/13}{\#13} & \scriptsize Luna Mora & \scriptsize Cierre S17 \\
+12 & Ampliar HAProxy (o introducir un API Gateway) para los tres microservicios restantes & B4 / Menor & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/14}{\#14} & \scriptsize Luna Mora & \scriptsize Cierre S17 \\
+13 & Limpieza de repositorio: clase vac\'ia, binarios de \texttt{target/} versionados, \texttt{.gitignore} corrupto & Sugerencia & \raggedright\scriptsize\href{https://github.com/LEO23as/sga-sistema-distribuido/issues/10}{\#10}\newline (pendiente: reutilizar) & \scriptsize Luna Mora & \scriptsize Cierre S17 \\
+\bottomrule
+\end{xltabular}
+}
+
+\begin{notebox}[title=Referencia de columnas truncadas]
+La columna \emph{Enlace} apunta al n\'umero real asignado por GitHub a cada issue (verificado program\'aticamente contra la API p\'ublica del repositorio). La columna \emph{Resp.} muestra el integrante de BCEL propuesto por AGLS para cada issue (Keyla Bed\'on Viteri, Pedro Castro L\'opez, Juliana Emanuel Pino y Ernesto Luna Mora); a la fecha de esta verificaci\'on esa asignaci\'on todav\'ia no se refleja como \emph{assignee} de GitHub en ning\'un issue -- el equipo BCEL debe autoasignarse cada uno seg\'un esta propuesta (o redistribuirla si lo prefieren). ``Cierre S17'' significa: cualquier fecha anterior al cierre de la Semana 17 del calendario del curso.
+\end{notebox}
+
+%
+
+
 \end{document}
