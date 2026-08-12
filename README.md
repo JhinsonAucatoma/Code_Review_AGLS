@@ -57,6 +57,6 @@ Cuatro pasos en ese orden: el primer `pdflatex` genera el `.bcf` que necesita `b
 - [ ] El issue **#10** de GitHub quedó duplicado del **#9**; falta editarlo con el contenido del issue de higiene de repositorio (hallazgo H14) en vez de dejarlo repetido.
 - [ ] Crear las etiquetas (`solid`, `patrones`, `capas`, `excepciones`, `logging`, `seguridad`, `severidad:critica`, `severidad:mayor`, `severidad:menor`, `sugerencia`) y aplicarlas a cada issue.
 - [ ] Que cada integrante de BCEL se autoasigne (*assignee* de GitHub) el issue que le corresponde.
-- [ ] Compilar el PDF final y confirmar que no queden advertencias `Citation ... undefined` ni `Empty bibliography` en el log.
-- [ ] Verificar que el conteo de páginas de contenido (sin portada ni bibliografía) esté entre 6 y 12, como exige FORM-TL-05.
-- [ ] Subir el PDF compilado al LMS junto con `FORM_TL_06.pdf`.
+- [x] Compilar el PDF final y confirmar que no queden advertencias `Citation ... undefined` ni `Empty bibliography` en el log.
+- [x] Verificar que el conteo de páginas de contenido (sin portada ni bibliografía) esté entre 6 y 12, como exige FORM-TL-05.
+- [x] Subir el PDF compilado al LMS junto con `FORM_TL_06.pdf`.
