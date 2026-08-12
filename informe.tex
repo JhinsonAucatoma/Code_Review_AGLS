@@ -1,0 +1,122 @@
+\documentclass[11pt,a4paper]{article}
+
+% ============================================================
+% FORM-TL-05 -- Informe de Revision Tecnica Cruzada
+% Equipo revisor: AGLS   |   Equipo/PFC revisado: BCEL - SGA Escuela Provincias Unidas
+% ============================================================
+
+\usepackage[spanish,es-tabla]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[expansion=false]{microtype}
+\emergencystretch=3em
+\sloppy
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{xltabular}
+\usepackage[most]{tcolorbox}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{xurl}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage[backend=biber,style=ieee,sorting=none]{biblatex}
+\addbibresource{referencias.bib}
+\usepackage[hidelinks,breaklinks]{hyperref}
+
+\definecolor{uteqblue}{RGB}{36,58,118}
+\definecolor{boxgray}{RGB}{245,246,248}
+\definecolor{critred}{RGB}{178,34,34}
+\definecolor{majorange}{RGB}{204,120,0}
+\definecolor{minoryellow}{RGB}{150,120,0}
+\definecolor{sugblue}{RGB}{70,110,160}
+
+\titleformat{\section}{\large\bfseries\color{uteqblue}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{uteqblue}}{\thesubsection}{0.6em}{}
+
+\lstset{
+    basicstyle=\ttfamily\footnotesize,
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    xleftmargin=1.8em,
+    backgroundcolor=\color{boxgray},
+    columns=fullflexible,
+    showstringspaces=false
+}
+
+\newtcolorbox{sevcrit}{colback=critred!8,colframe=critred,fonttitle=\bfseries,title=Severidad: Cr\'itica}
+\newtcolorbox{sevmajor}{colback=majorange!8,colframe=majorange,fonttitle=\bfseries,title=Severidad: Mayor}
+\newtcolorbox{sevminor}{colback=minoryellow!8,colframe=minoryellow,fonttitle=\bfseries,title=Severidad: Menor}
+\newtcolorbox{sevsug}{colback=sugblue!8,colframe=sugblue,fonttitle=\bfseries,title=Sugerencia}
+\newtcolorbox{notebox}[1][]{colback=uteqblue!5,colframe=uteqblue,fonttitle=\bfseries,#1}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small UTEQ \textperiodcentered\ ISR-701 \textperiodcentered\ FORM-TL-05}
+\rhead{\small Revisi\'on cruzada AGLS $\to$ BCEL}
+\cfoot{\small\thepage}
+
+\title{
+    \vspace{-1.5cm}
+    {\small UNIVERSIDAD T\'ECNICA ESTATAL DE QUEVEDO\\Facultad de Ciencias de la Computaci\'on\\Carrera de Ingenier\'ia de Software}\\[0.6cm]
+    \textbf{\Large Informe de Revisi\'on T\'ecnica Cruzada del C\'odigo del PFC}\\[0.2cm]
+    \large FORM-TL-05 --- Principios SOLID, patrones de dise\~no, separaci\'on de capas,\\
+    manejo de excepciones distribuidas y observabilidad\\[0.3cm]
+    \normalsize Sistema auditado: \textbf{SGA -- Sistema de Gesti\'on Acad\'emica Distribuido}\\
+    (equipo autor \textbf{BCEL}, sigla institucional ``Escuela Provincias Unidas'')
+}
+\author{Equipo revisor: \textbf{AGLS}\\ \small (PFC propio del equipo revisor: TiendaTech -- comercio electr\'onico, no auditado en este informe)}
+\date{Per\'iodo 2026--2027 \textperiodcentered\ Semana 16}
+
+\begin{document}
+
+    \maketitle
+    \thispagestyle{empty}
+
+    \begin{center}
+        \renewcommand{\arraystretch}{1.3}
+        \begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{4.2cm}X@{}}
+\toprule
+\multicolumn{2}{l}{\textbf{Datos del equipo REVISOR (AGLS)}}\\
+\midrule
+Integrante 1 -- Rol & Jhinson Stalyn Aucatoma Celorio -- Bloques A, B y C (SOLID, patrones y separaci\'on de capas) \\
+Integrante 2 -- Rol & Andy Paul S\'anchez Pilaloa -- Bloques D y E (excepciones distribuidas y trazabilidad) \\
+\midrule
+\multicolumn{2}{l}{\textbf{Datos del PFC REVISADO (BCEL)}}\\
+\midrule
+Equipo revisado (sigla) & BCEL \\
+Nombre del sistema & SGA -- Sistema de Gesti\'on Acad\'emica Distribuido (Escuela Provincias Unidas) \\
+URL del repositorio revisado & \small\url{https://github.com/LEO23as/sga-sistema-distribuido} \\
+Commit auditado (SHA corto) & \texttt{\small ff6f8b0} \small (completo: \texttt{ff6f8b0bf3f4200ae4deb9d6d7833e8bce7330f4}) \\
+Fecha y hora de la auditor\'ia & 11 de agosto de 2026, 08:30 \\
+\bottomrule
+        \end{tabularx}
+    \end{center}
+
+    \vspace{0.4cm}
+    \begin{notebox}[title=Nota de verificaci\'on del objeto revisado \label{sec:verificacion}]
+        Siguiendo la pr\'actica profesional de revisi\'on de c\'odigo moderna, cuyo valor documentado excede la sola detecci\'on de defectos y se centra en la transferencia de conocimiento entre equipos~\cite{bacchelli2013,sadowski2018}, el an\'alisis inicial se elabor\'o sobre el archivo \texttt{sga-sistema-distribuido-main.zip} entregado como material de trabajo, correspondiente a una descarga ``Download ZIP'' de la rama \texttt{main} y sin directorio \texttt{.git}. Posteriormente el equipo AGLS complet\'o la verificaci\'on exigida en la Secci\'on 6 de la gu\'ia FORM-TL-05 sobre un clon real del repositorio:
+        \begin{lstlisting}[language=bash,numbers=none]
+git clone https://github.com/LEO23as/sga-sistema-distribuido.git revision-pfc
+cd revision-pfc
+git log -1 --format="%H | %aI | %an"
+git rev-parse --short HEAD
+git ls-files | wc -l
+        \end{lstlisting}
+        confirmando como commit auditado el \texttt{ff6f8b0} (SHA completo \texttt{ff6f8b0bf3f4200ae4deb9d6d7833e8bce7330f4}), verificado el 11 de agosto de 2026 a las 08:30, valores ya reflejados en la portada. Todos los hallazgos de este informe referencian rutas de archivo estables dentro del \'arbol de trabajo (\texttt{sga-principal/}, \texttt{microservicio-docente/}, \texttt{microservicio-secretaria/}, \texttt{microservicio-soporte/}), por lo que siguen siendo v\'alidos independientemente de cambios posteriores al commit auditado, siempre que se referencien contra ese SHA exacto.
+    \end{notebox}
+
+    \newpage
+    \tableofcontents
+    \thispagestyle{empty}
+    \newpage
+    \setcounter{page}{1}
+
+\end{document}
