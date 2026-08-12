@@ -194,5 +194,82 @@ Flechas s\'olidas: REST/HTTP. Flechas discontinuas: gRPC (\texttt{PLAINTEXT}, si
         \bottomrule
     \end{xltabular}
     }
+% ================================================================
+    \section{An\'alisis por bloque}
+    \label{sec:analisis}
+
+    \subsection{Bloque A -- Principios SOLID}
+
+    Los cinco principios se verifican en el sentido estructural definido por Martin~\cite{martin2017}: producir m\'odulos que toleren el cambio, no una preferencia de estilo.
+
+    \textbf{SRP (violado, H01/H04).} \texttt{ImportacionExcelService} resuelve tres responsabilidades independientes -- parseo de CSV, parseo de Excel (Apache POI) y extracci\'on heur\'istica de listados PDF con expresiones regulares (Apache PDFBox) -- y adem\'as ejecuta la persistencia final de \texttt{Estudiante} y \texttt{Matricula} dentro del mismo m\'etodo \texttt{confirmarImportacion} (l\'ineas 319-387). El propio c\'odigo documenta esta deuda en su Javadoc de clase (l\'ineas 34-39: ``mismo bypass que \texttt{ImportacionCasService}\ldots escribe estudiantes/matr\'iculas por JPA directo, sin pasar por \texttt{sga-secretaria}''), lo que confirma que el equipo autor es consciente del atajo pero no lo ha encapsulado. El caso m\'as costoso es \texttt{PrincipalGrpcService} (H04): al ser el \'unico punto de entrada gRPC que consultan \emph{dos} microservicios distintos (\texttt{secretaria} y \texttt{soporte}), cualquier cambio en su forma de acceder a datos tiene radio de impacto en todo el sistema distribuido, no s\'olo en \texttt{sga-principal}.
+
+    \textbf{OCP (violado, H02).} \texttt{parsearArchivo} decide el parser por medio de una cadena \texttt{if/else if} sobre la extensi\'on del nombre de archivo (l\'ineas 61-70). Cada formato nuevo exige tocar este m\'etodo y a\~nadir un \texttt{leerX} paralelo; no hay una abstracci\'on (\texttt{interface ImportadorArchivo}) que permita registrar un nuevo formato sin modificar c\'odigo existente.
+
+    \begin{lstlisting}[language=Java,caption={Cadena condicional cerrada a extensi\'on, ImportacionExcelService.java:61-70}]
+if (nombreArchivo.endsWith(".csv")) {
+    filas = leerCsv(archivo);
+} else if (nombreArchivo.endsWith(".xlsx") || nombreArchivo.endsWith(".xls")) {
+    filas = leerExcel(archivo);
+} else if (nombreArchivo.endsWith(".pdf")) {
+    filas = leerPdf(archivo);
+} else {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ...);
+}
+    \end{lstlisting}
+
+    \textbf{LSP e ISP (sin violaci\'on exigible -- NA justificado).} Se busc\'o de forma expl\'icita jerarqu\'ias de clases e interfaces propias del dominio (\texttt{grep \textquotedbl class .* extends\textquotedbl} en los tres backends Java). El \'unico hallazgo son las clases generadas de gRPC (\texttt{PrincipalServiceGrpc.PrincipalServiceImplBase}) y el filtro est\'andar de Spring Security (\texttt{OncePerRequestFilter}); ambas se implementan sin estrechar precondiciones ni lanzar \texttt{UnsupportedOperationException}. El sistema tampoco define interfaces de servicio propias (los \texttt{@Service} son clases concretas inyectadas directamente), por lo que no existe superficie donde ISP pueda violarse. Marcar estos dos \'items como ``no aplica'' es m\'as honesto que forzar un hallazgo: la ausencia de abstracciones no es en s\'i misma una violaci\'on de LSP/ISP, pero s\'{\i} es la causa ra\'iz del siguiente punto.
+
+    \textbf{DIP (violado, H03/H04).} La ausencia casi total de interfaces de servicio explica por qu\'e las capas superiores terminan dependiendo de implementaciones concretas de infraestructura en vez de abstracciones. \texttt{AuthController} (capa de presentaci\'on) inyecta \texttt{UsuarioRepository} (capa de persistencia) en lugar de pasar exclusivamente por \texttt{UsuarioService}:
+
+    \begin{lstlisting}[language=Java,caption={AuthController.java:9,23,39-41 -- controlador dependiendo de un repositorio concreto}]
+import ec.edu.uteq.sga.repository.UsuarioRepository;
+...
+private final UsuarioRepository usuarioRepository;
+...
+Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
+        .orElseThrow();
+    \end{lstlisting}
+
+    Del lado de \texttt{PrincipalGrpcService}, la capa de comunicaci\'on remota importa cuatro repositorios (\texttt{AnoLectivoRepository}, \texttt{AsignaturaRepository}, \texttt{RepresentanteRepository}, \texttt{EstudianteRepository}) en paralelo a dos servicios (\texttt{EstudianteService}, \texttt{GradoService}), de modo que algunas operaciones del mismo agregado pasan por el servicio y otras acceden al repositorio directamente: no hay un contrato \'unico y estable que las dem\'as capas puedan sustituir o mockear.
+
+    \subsection{Bloque B -- Patrones de dise\~no y antipatrones}
+
+    El cat\'alogo de referencia usado para clasificar patrones y antipatrones es el cl\'asico de Gamma et al.~\cite{gamma1994} para los primeros, y los cat\'alogos espec\'ificos de arquitecturas de microservicios para los segundos~\cite{cerny2023,tighilt2023,taibi2018}.
+
+    \textbf{Patrones bien aplicados.} El uso de \emph{DTO} (Data Transfer Object) es consistente y correcto en \texttt{sga-principal} y, sobre todo, en \texttt{microservicio-secretaria} (paquete \texttt{dto/} con m\'as de 15 clases \texttt{Request}/\texttt{Response} independientes de las entidades JPA). El patr\'on \emph{Repository} v\'ia Spring Data JPA se respeta en la mayor\'ia del c\'odigo (interfaces \texttt{XxxRepository extends JpaRepository}, sin SQL crudo expuesto al controlador). El manejador centralizado de excepciones de \texttt{secretaria}/\texttt{soporte} (\texttt{@RestControllerAdvice}, Secci\'on~\ref{sec:analisis} Bloque D) es una aplicaci\'on correcta del patr\'on \emph{Chain of Responsibility / Interceptor} para normalizar errores.
+
+    \textbf{Patr\'on mal aplicado (H04).} \texttt{PrincipalGrpcService} se presenta como un adaptador/gateway gRPC, pero al inyectar repositorios directamente se comporta como un \emph{Repository} disfrazado de \emph{Facade}: expone operaciones de bajo nivel de cuatro agregados distintos sin que ese acoplamiento quede documentado en ning\'un contrato (\texttt{.proto} s\'olo describe la forma del mensaje, no qui\'en puede tocar qu\'e tabla).
+
+    \textbf{Patrones distribuidos (H13, parcial).} Siguiendo los patrones de descomposici\'on y comunicaci\'on descritos por Richardson~\cite{richardson2018} y Newman~\cite{newman2021}, existe \emph{Load Balancer} con \emph{health check} activo (HAProxy, \texttt{httpchk GET /actuator/health/liveness}, \texttt{fall 2 rise 2}), pero s\'olo delante de \texttt{sga-principal}; no hay una \emph{API Gateway} real que unifique el enrutamiento de los cuatro servicios bajo un mismo punto de entrada, ni \emph{Circuit Breaker} ni \emph{Saga} en ninguna transacci\'on que cruce servicios (p.\,ej. crear matr\'icula en \texttt{secretaria} + registrar en \texttt{principal} v\'ia gRPC no tiene compensaci\'on documentada si el segundo paso falla).
+
+    \textbf{Antipatr\'on de base de datos compartida (H05, cr\'itico).} \texttt{microservicio-docente/micro\_docente/settings.py} configura expl\'icitamente el \texttt{search\_path} de su conexi\'on con acceso al esquema de otro servicio:
+
+    \begin{lstlisting}[language=Python,caption={micro\_docente/settings.py:53-65}]
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        ...
+        "HOST": os.environ.get("DB_HOST", "3.23.195.43"),
+        "PORT": os.environ.get("DB_PORT", "5433"),
+        "OPTIONS": {
+            "options": "-c search_path=sga_docente,sga_principal,public",
+        },
+    }
+}
+    \end{lstlisting}
+    Tal como advierten los estudios de reingenier\'ia hacia microservicios, este tipo de decisi\'on debe evaluarse con criterios expl\'icitos de acoplamiento y cohesi\'on entre servicios, y no con la impresi\'on subjetiva del revisor~\cite{mohottige2025}. Esto no es un desliz de una \'unica consulta: es la configuraci\'on de conexi\'on por defecto, por lo que \emph{cualquier} consulta ORM de \texttt{docente} puede alcanzar tablas de \texttt{sga\_principal} sin pasar por el gRPC que el propio equipo dise\~n\'o para ese prop\'osito. Sumado a que los cuatro backends apuntan al mismo host y puerto f\'isico (\texttt{3.23.195.43:5433}), el sistema no cumple \emph{database per service} pese a estar descrito como ``persistencia de datos distribuida'' en el \texttt{README.md}.
+
+    \subsection{Bloque C -- Separaci\'on de capas}
+
+    La estructura de paquetes (\texttt{controller}/\texttt{service}/\texttt{repository}/\texttt{dto}/\texttt{entity}) existe y en su mayor\'ia se respeta (C1, cumple). La direcci\'on de dependencias hacia el dominio, sin embargo, se rompe en dos puntos ya evidenciados en el Bloque A: \texttt{AuthController} y \texttt{PrincipalGrpcService} importan clases de \texttt{repository} sin pasar por \texttt{service} (C2, no cumple). Las entidades JPA no se filtran directamente en las respuestas REST de \texttt{sga-principal} ni de \texttt{secretaria}/\texttt{soporte} (C3, cumple: se usan DTO \texttt{Response} en todos los controladores revisados). La configuraci\'on sensible \textbf{no} est\'a externalizada de forma segura (C5, no cumple, ver H06): aunque se usa el patr\'on \texttt{\${VAR:default}} de Spring, el valor por defecto embebido es un secreto real y funcional, no un valor de ejemplo, por lo que basta con \emph{no} definir la variable de entorno para que el sistema arranque con la contrase\~na de producci\'on tal como qued\'o versionada.
+
+    \subsection{Bloque D -- Manejo de excepciones distribuidas}
+
+    No se encontraron bloques \texttt{catch} que descarten la excepci\'on en silencio (D1, cumple): toda captura relanza o registra, aunque una parte lo hace por \texttt{System.err.println} en vez de un logger (ver Bloque E). El punto m\'as d\'ebil del sistema es la ausencia total de \texttt{withDeadlineAfter}/\texttt{Deadline} en los cinco clientes gRPC (D2, no cumple, H07): una llamada bloqueante sin l\'imite de tiempo propio depende \'unicamente de la configuraci\'on por defecto del canal, que tampoco se fija expl\'icitamente. No existen reintentos en ning\'un cliente (D3, no aplica por ausencia total -- no hay pol\'itica que evaluar), y por la misma raz\'on tampoco existe degradaci\'on ni valor de reserva ante un servicio ca\'ido (D4, no cumple, H08): el \texttt{catch (StatusRuntimeException e)} de \texttt{ActividadGrpcClient} s\'olo hace \texttt{System.err.println} y relanza la excepci\'on original hacia el controlador, que no la traduce a un mensaje de negocio. El formato de error expuesto al cliente tampoco es uniforme entre servicios (D5, no cumple, H09): \texttt{secretaria} y \texttt{soporte} devuelven \texttt{\{\textquotedbl error\textquotedbl: ..., \textquotedbl detalle\textquotedbl: ...\}} v\'ia \texttt{GlobalExceptionHandler}, mientras que \texttt{sga-principal} no tiene ese manejador y deja que Spring Boot devuelva su cuerpo de error por defecto ante cualquier excepci\'on no cubierta por un \texttt{ResponseStatusException} expl\'icito (por ejemplo, el \texttt{NoSuchElementException} de \texttt{AuthController.java:41}).
+
+    \subsection{Bloque E -- Logging y trazabilidad}
+
+    Del c\'odigo de \texttt{sga-principal} s\'olo cuatro clases usan \texttt{@Slf4j} (\texttt{EmailService}, \texttt{ImportacionCasService}, \texttt{ImportacionExcelService}, \texttt{UsuarioService}); el resto de puntos de depuraci\'on usa \texttt{System.out}/\texttt{err.println}, incluido el propio \texttt{main()} (E1, no cumple, H10). No existe ning\'un identificador de correlaci\'on: los metadatos gRPC que s\'i se propagan (\texttt{docente\_id}, \texttt{internal\_token}) autentican al llamante pero no identifican la petici\'on, por lo que no sirven para unir registros de distintos servicios (E2, no cumple, H11). Al no existir E2, tampoco puede cumplirse un registro estructurado filtrable por identificador de correlaci\'on (E3, no cumple por dependencia directa de E2), aunque los mensajes que s\'i pasan por Slf4j usan par\'ametros con \texttt{\{\}} en vez de concatenaci\'on de cadenas, lo cual es una base aprovechable para migrar a JSON estructurado. Se encontr\'o exposici\'on de datos sensibles (E4, no cumple, cr\'itico, H12): el hash de una contrase\~na hardcodeada se imprime en cada arranque de \texttt{sga-principal}, y el \texttt{README.md} publica usuario y contrase\~na reales de dos roles. Los eventos cr\'iticos del dominio (matr\'icula, creaci\'on de ticket) s\'{\i} generan al menos un registro de persistencia auditable en base de datos vi\'a los campos \texttt{fecha\_creacion}/\texttt{creado\_por} de las entidades (E5, cumple parcialmente), pero sin acompa\~namiento de un registro de aplicaci\'on correlacionable.
 
 \end{document}
