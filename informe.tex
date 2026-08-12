@@ -165,5 +165,34 @@ Flechas s\'olidas: REST/HTTP. Flechas discontinuas: gRPC (\texttt{PLAINTEXT}, si
 \normalsize
 
 %
+    ================================================================
+    \section{Tabla consolidada de hallazgos}
+    \label{sec:hallazgos}
+
+    Cada hallazgo se clasifica adem\'as por el atributo de calidad de producto que compromete, siguiendo la nomenclatura de ISO/IEC~25010~\cite{iso25010} (mantenibilidad, fiabilidad, seguridad o eficiencia de desempe\~no, seg\'un el caso); esa clasificaci\'on se detalla en el cuerpo de cada issue del Anexo A (archivo \texttt{issues\_plan.md}) para no duplicar columnas en esta tabla. Cada hallazgo referencia archivo y l\'inea dentro del \'arbol de trabajo del repositorio revisado. La columna \emph{Item} usa la nomenclatura de la Secci\'on 5 de la gu\'ia FORM-TL-05 (bloques A--E). La columna \emph{Issue} enlaza al n\'umero que deber\'a asignarse al abrir el issue en el repositorio de BCEL (Secci\'on~\ref{sec:issues}).
+
+        {\small
+    \begin{xltabular}{\textwidth}{@{}p{0.55cm}p{0.95cm}X p{3.5cm}p{1.05cm}p{0.6cm}@{}}
+        \toprule
+        \textbf{ID} & \textbf{Item} & \textbf{Hallazgo} & \textbf{Evidencia (ruta:l\'inea)} & \textbf{Sever.} & \textbf{\#} \\
+        \midrule
+        \endhead
+        H01 & A1 & \texttt{ImportacionExcelService} concentra parseo de CSV, Excel y PDF y la persistencia de estudiantes/matr\'iculas en una sola clase de 388 l\'ineas. & {\raggedright\scriptsize\url{sga-principal/.../service/ImportacionExcelService.java:43-388}\par} & Mayor & 1 \\
+        H02 & A2 & Agregar un formato de archivo nuevo (p.\,ej. \texttt{.ods}) obliga a editar el \texttt{if/else} existente en \texttt{parsearArchivo} y a\~nadir un m\'etodo \texttt{leerX} paralelo. & {\raggedright\scriptsize\url{.../ImportacionExcelService.java:61-70}\par} & Menor & 2 \\
+        H03 & A5/C2 & \texttt{AuthController} inyecta \texttt{UsuarioRepository} directamente y lo consulta con \texttt{.orElseThrow()} sin manejar, saltando la capa de servicio. & {\raggedright\scriptsize\url{.../controller/AuthController.java:9,23,39-41}\par} & Mayor & 3 \\
+        H04 & A1/A5/C2 & \texttt{PrincipalGrpcService} (adaptador gRPC, capa de comunicaci\'on) inyecta 4 repositorios adem\'as de 2 servicios y mezcla marshalling, acceso a datos y reglas de 5 agregados distintos en 382 l\'ineas. & {\raggedright\scriptsize\url{.../grpc/PrincipalGrpcService.java:37-44}\par} & Mayor & 4 \\
+        H05 & B5/C5 & El esquema de \texttt{microservicio-docente} declara \texttt{search\_path=sga\_docente,sga\_principal,public}: puede leer/escribir directamente el esquema de otro servicio. Los 4 backends adem\'as convergen en la misma instancia f\'isica de PostgreSQL. & {\raggedright\scriptsize\url{micro_docente/settings.py:53-65} (l.63)\par} & Cr\'itica & 5 \\
+        H06 & C5 & Contrase\~na de BD, secreto JWT, contrase\~na de aplicaci\'on de Gmail y token interno de gRPC hardcodeados y versionados en texto claro; credenciales reales de acceso publicadas en el \texttt{README.md}. & {\raggedright\scriptsize\url{application.properties:10,29,33-34};\newline \url{settings.py:58};\newline \url{InternalAuthInterceptor.java:15}; README.md\par} & Cr\'itica & 6 \\
+        H07 & D2 & Ning\'un cliente gRPC del sistema (\texttt{Actividad}/\texttt{Asistencia}/\texttt{DocenteGrpcClient}, \texttt{PrincipalGrpcClient}, \texttt{TecnicoGrpcClient}) fija \texttt{withDeadlineAfter}; las llamadas son bloqueantes sin l\'imite de espera propio. & {\raggedright\scriptsize\url{.../grpc/ActividadGrpcClient.java:30-37} (5 clientes)\par} & Mayor & 7 \\
+        H08 & D3/D4 & No existe pol\'itica de reintentos ni respuesta de degradaci\'on: los \texttt{catch} s\'olo relanzan la excepci\'on original o la traducen 1:1 a un error HTTP, sin valor de reserva. & {\raggedright\scriptsize\url{ActividadGrpcClient.java:33-36,42-45,52-55,67-70,77-80}\par} & Mayor & 7 \\
+        H09 & D5 & Formato de error no uniforme entre servicios: \texttt{secretaria} y \texttt{soporte} tienen \texttt{@RestControllerAdvice} propio; \texttt{sga-principal} no tiene ning\'un manejador global y depende de \texttt{ResponseStatusException} ad-hoc por m\'etodo. & {\raggedright\scriptsize \texttt{sga-principal}: sin \texttt{@ControllerAdvice}\newline (0 result.) vs.\newline \url{.../soporte/.../GlobalExceptionHandler.java:1-127}\par} & Mayor & 8 \\
+        H10 & E1 & Registro por consola (\texttt{System.out}/\texttt{err.println}) en vez de logger inyectado, incluyendo el punto de entrada de la aplicaci\'on. & {\raggedright\scriptsize\url{DocenteContextController.java:31-86};\newline \url{SgaPrincipalApplication.java:14};\newline \url{DataSeedRunner.java:47-182};\newline \url{ActividadGrpcClient.java:34,43,53,68,78}\par} & Menor & 9 \\
+        H11 & E2 & No existe identificador de correlaci\'on en ning\'un punto del sistema (0 coincidencias de \texttt{MDC}/\texttt{correlationId}/\texttt{traceId}/\texttt{X-Request-Id} en los 3 backends Java ni en \texttt{settings.py} de Django). & {\raggedright\scriptsize B\'usqueda global \texttt{grep -rln} en los 4 servicios (0 result.)\par} & Mayor & 10 \\
+        H12 & E4 & \texttt{main()} imprime en cada arranque el hash bcrypt de una contrase\~na hardcodeada; el \texttt{README.md} publica usuario y contrase\~na reales de administrador y docente en texto claro. & {\raggedright\scriptsize\url{SgaPrincipalApplication.java:12-16}; README.md (\S\ Credenciales)\par} & Cr\'itica & 11 \\
+        H13 & B4 & La \'unica puerta de enlace (HAProxy) balancea exclusivamente \texttt{sga-principal}; \texttt{docente}, \texttt{secretaria} y \texttt{soporte} no tienen \texttt{backend} definido, por lo que el frontend debe conocer y llamar cada puerto de servicio directamente. & {\raggedright\scriptsize\url{infra/haproxy/haproxy.cfg:24-47}\par} & Menor & 12 \\
+        H14 & Sug. & Higiene de repositorio: clase p\'ublica vac\'ia con nombre en min\'uscula (\texttt{repository.java}); binarios \texttt{protoc-*.exe} versionados en \texttt{target/} pese a que \texttt{.gitignore} excluye \texttt{**/target/}; \texttt{.gitignore} con codificaci\'on corrupta en sus \'ultimas l\'ineas. & {\raggedright\scriptsize\url{.../repository/repository.java};\newline \url{.../soporte/backend/target/protoc-plugins/}; .gitignore\par} & Sug. & 13 \\
+        \bottomrule
+    \end{xltabular}
+    }
 
 \end{document}
