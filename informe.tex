@@ -308,6 +308,18 @@ La columna \emph{Enlace} apunta al n\'umero real asignado por GitHub a cada issu
 \end{notebox}
 
 %
+    ================================================================
+    \section{Preguntas de an\'alisis obligatorias}
+    \label{sec:preguntas}
 
+    \begin{enumerate}[leftmargin=*,label=\textbf{P\arabic*.}]
+\item \textbf{Qu\'e violaci\'on SOLID encarece m\'as el cambio de cara a la Entrega 4.}
+De las cuatro violaciones documentadas, la que m\'as encarece el cambio futuro es la de \texttt{PrincipalGrpcService} (H04, SRP+DIP), no la de \texttt{ImportacionExcelService} (H01) a pesar de tener m\'as l\'ineas. La raz\'on es el radio de impacto: \texttt{ImportacionExcelService} s\'olo la usa \texttt{sga-principal} en un flujo interno de carga masiva; \texttt{PrincipalGrpcService} es el \'unico punto de acceso remoto que consultan \emph{dos} microservicios externos (\texttt{secretaria} y \texttt{soporte}). Cualquier refactor de sus repositorios internos, o cualquier bug introducido al a\~nadir un nuevo m\'etodo, se propaga inmediatamente a dos equipos de desarrollo distintos que dependen del mismo \texttt{.proto} y del mismo comportamiento impl\'icito (qu\'e endpoint pasa por el servicio y cu\'al accede al repositorio directo no est\'a documentado en ninguna parte).
+
+\item \textbf{Patr\'on de dise\~no a introducir y por qu\'e una soluci\'on m\'as simple no basta.}
+Se introducir\'ia \emph{Circuit Breaker} (por ejemplo con Resilience4j) envolviendo los cinco clientes gRPC identificados en H07/H08. El problema concreto que resuelve es el de fallo parcial no contenido: hoy, si \texttt{microservicio-docente} deja de responder, cada petici\'on de \texttt{sga-principal} hacia \'el sigue intent\'andolo sin l\'imite de tiempo propio (no hay \texttt{deadline}) y sin abrir un circuito que corte los intentos tras detectar fallos repetidos. Un simple \texttt{try/catch} con reintento manual no basta porque no tiene memoria entre peticiones: cada nueva petici\'on de un usuario distinto repite el mismo costo de espera y el mismo fallo, agotando hilos del servidor uno a uno hasta el colapso; el Circuit Breaker s\'{\i} recuerda el estado del servicio remoto y falla r\'apido para las peticiones siguientes mientras el servicio no se recupera.
+
+\item \textbf{Qu\'e ocurre si un servicio dependiente deja de responder 30 segundos.}
+Trazando el camino de, por ejemplo, \texttt{DocenteActividadController} $\to$ \texttt{ActividadGrpcClient.crearActividad()} (\texttt{ActividadGrpcClient.java:30-37}): el m\'etodo llama a \texttt{getStubWithMetadata().crearActividad(request)} sobre un \texttt{BlockingStub} sin \texttt{withDeadlineAfter}. Si \texttt{microservicio-docente} deja de responder (proceso vivo pero colgado, no ca\'ido), el hilo HTTP de Tomcat que atiende esa petici\'on de \texttt{sga-principal} queda bloqueado durante los 30 segundos completos -- y m\'as, porque no hay l\'imite propio -- sin liberar el hilo del pool. El punto de fallo exacto es la ausencia de \texttt{Deadline} en esa l\'inea: si varias peticiones concurrentes golpean el mismo endpoint durante la ventana de indisponibilidad, el pool de hilos de \texttt{sga-principal} se agota y el servicio deja de responder tambi\'en a peticiones que no ten\'ian nada que ver con \texttt{docente} (por ejemplo, un simple \texttt{GET /api/estudiantes}), es decir, se produce una falla en cascada.
 
 \end{document}
