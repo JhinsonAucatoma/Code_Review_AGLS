@@ -29,10 +29,10 @@ Revisión técnica cruzada del PFC de **BCEL** (SGA — Sistema de Gestión Acad
 En TeX Live sobre Debian/Ubuntu, si falta algo: `sudo apt install texlive-bibtex-extra biber texlive-lang-spanish`. En MiKTeX se instala automáticamente al compilar.
 
 ```bash
-pdflatex -interaction=nonstopmode informe.tex
+pdflatex -interaction=nonstopmode informe_revision.tex
 biber informe
-pdflatex -interaction=nonstopmode informe.tex
-pdflatex -interaction=nonstopmode informe.tex
+pdflatex -interaction=nonstopmode informe_revision.tex
+pdflatex -interaction=nonstopmode informe_revision.tex
 ```
 
 Cuatro pasos en ese orden: el primer `pdflatex` genera el `.bcf` que necesita `biber` para resolver las citas contra `referencias.bib`; los dos `pdflatex` siguientes insertan la bibliografía y estabilizan referencias cruzadas (índice, `\ref` a secciones).
