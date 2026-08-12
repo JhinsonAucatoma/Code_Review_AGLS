@@ -330,4 +330,9 @@ No. Como se documenta en E2 (H11), no existe ning\'un identificador de correlaci
 Cuatro decisiones concretas: (1) usar DTO de entrada/salida desde el primer commit -- \texttt{secretaria} y \texttt{soporte} lo hacen bien y evitan exponer entidades, mientras que retrofitarlo despu\'es es costoso; (2) instalar un \texttt{@ControllerAdvice} \'unico antes de escribir el primer controlador, no despu\'es, para no repetir la inconsistencia detectada en H09; (3) separar la base de datos por servicio a nivel de \emph{rol y credencial}, no s\'olo de esquema l\'ogico, porque un \texttt{search\_path} amplio (como el de H05) anula la separaci\'on aunque existan esquemas distintos; (4) definir \texttt{deadline} y una pol\'itica m\'inima de reintento acotado en el primer cliente gRPC/HTTP que se escriba, porque a\~nadir resiliencia despu\'es de tener decenas de llamadas s\'incronas dispersas, como le ocurre hoy a BCEL, es mucho m\'as caro que dise\~narla desde el inicio.
 \end{enumerate}
 
+    % ================================================================
+    \section{Conclusiones y recomendaci\'on priorizada}
+    \label{sec:conclusiones}
+
+    El sistema BCEL demuestra dominio de la arquitectura de microservicios en aspectos que van m\'as all\'a de lo exigido por el curso: un balanceador con \emph{health checks} activos, un algoritmo propio de elecci\'on de l\'ider sobre \texttt{etcd} en \texttt{microservicio-soporte}, observabilidad con Prometheus/Grafana ya cableada en \texttt{docker-compose.yml}, y un uso correcto y consistente de DTO en \texttt{secretaria}/\texttt{soporte}. Estos aciertos deben mantenerse y, en el caso del manejador de excepciones de \texttt{secretaria}/\texttt{soporte}, extenderse a \texttt{sga-principal}, que es hoy el eslab\'on m\'as d\'ebil del sistema en los cinco bloques evaluados.
 \end{document}
