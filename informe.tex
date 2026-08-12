@@ -119,4 +119,51 @@ git ls-files | wc -l
     \newpage
     \setcounter{page}{1}
 
+================================================================
+\section{Mapa de arquitectura reconstruido}
+\label{sec:arquitectura}
+
+El sistema BCEL se compone de un servicio n\'ucleo (\texttt{sga-principal}, Java 17 / Spring Boot) y tres microservicios aut\'onomos (\texttt{microservicio-docente} en Django REST + gRPC, y \texttt{microservicio-secretaria} / \texttt{microservicio-soporte}, ambos Spring Boot pese a que el \texttt{README.md} los documenta como ``Node.js/Express''\footnote{\texttt{README.md}, tabla de arquitectura: declara Node.js/Express para Secretar\'ia y Soporte; el c\'odigo real en \texttt{microservicio-secretaria/backend/pom.xml} y \texttt{microservicio-soporte/backend/pom.xml} es Maven/Spring Boot. Documentaci\'on desactualizada, ver Anexo de sugerencias.}). La reconstrucci\'on se hizo a partir de los \texttt{application.properties}/\texttt{settings.py}, los clientes gRPC y \texttt{docker-compose.yml}, no de la documentaci\'on.
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.9cm and 1.3cm,
+  box/.style={draw, rounded corners, minimum width=2.9cm, minimum height=1cm, align=center, font=\footnotesize},
+  svc/.style={box, fill=uteqblue!10},
+  db/.style={box, fill=orange!15, minimum width=4.6cm},
+  gw/.style={box, fill=gray!15},
+  fe/.style={box, fill=green!10},
+  arr/.style={-{Latex[length=2mm]}, thick},
+  grpcarr/.style={-{Latex[length=2mm]}, thick, dashed},
+]
+\node[fe] (front) {Frontends React\\(5173/5174/5175/5176)};
+\node[gw, below=of front] (haproxy) {HAProxy\\(solo balancea\\sga-principal: 8080/9092)};
+\node[svc, below=of haproxy] (principal) {sga-principal\\Spring Boot\\REST 8080 / gRPC 9092};
+\node[svc, below left=of principal, xshift=-0.9cm] (docente) {microservicio-docente\\Django REST + gRPC\\8081 / 9091};
+\node[svc, below right=of principal, xshift=0.9cm] (secretaria) {microservicio-secretaria\\Spring Boot\\8082 / gRPC cliente};
+\node[svc, right=1.6cm of secretaria] (soporte) {microservicio-soporte\\Spring Boot + etcd\\(elecci\'on de l\'ider)\\8083 / gRPC cliente};
+\node[db, below=1.6cm of principal] (pg) {PostgreSQL \'unico -- 3.23.195.43:5433\\esquemas: sga\_principal, sga\_docente, public\\(search\_path cruzado, ver H05)};
+
+\draw[arr] (front) -- (haproxy);
+\draw[arr] (haproxy) -- (principal);
+\draw[grpcarr] (principal) -- node[left,font=\scriptsize]{gRPC :9091} (docente);
+\draw[grpcarr] (secretaria) -- node[right,font=\scriptsize]{gRPC :9092} (principal);
+\draw[grpcarr] (soporte) -- node[below,font=\scriptsize]{gRPC :9092} (principal);
+\draw[arr,dotted] (front) -- (secretaria);
+\draw[arr,dotted] (front) -- (soporte);
+\draw[arr,dotted] (front) -- (docente);
+\draw[arr] (principal) -- (pg);
+\draw[arr] (docente) -- (pg);
+\draw[arr] (secretaria) -- (pg);
+\draw[arr] (soporte) -- (pg);
+\end{tikzpicture}%
+}
+\end{center}
+\footnotesize
+Flechas s\'olidas: REST/HTTP. Flechas discontinuas: gRPC (\texttt{PLAINTEXT}, sin TLS). Flechas punteadas: acceso directo de cada frontend a su propio backend, sin pasar por HAProxy (HAProxy s\'olo tiene \texttt{frontend}/\texttt{backend} definidos para \texttt{sga-principal}, ver \texttt{infra/haproxy/haproxy.cfg} l\'ineas 24--47). \texttt{sga-principal} act\'ua de facto como \emph{hub} gRPC: \texttt{secretaria} y \texttt{soporte} lo consultan para el cat\'alogo institucional (a\~nos, grados, estudiantes), y \'el a su vez consulta a \texttt{docente} para actividades/asistencias. \texttt{soporte} incorpora adem\'as un algoritmo propio de elecci\'on de l\'ider sobre \texttt{etcd} (\texttt{election/LeaderElectionService.java}), un acierto de dise\~no distribuido que se reconoce en la Secci\'on~\ref{sec:conclusiones}.
+\normalsize
+
+%
+
 \end{document}
